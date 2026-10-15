@@ -175,6 +175,50 @@ describe('object', () => {
   test('should handle closing after empty object', () => {
     assert.strictEqual(fixJson('{"a": {"b": {}'), '{"a": {"b": {}}}');
   });
+
+  describe.each([
+    String.raw`"key\"name"`,
+    String.raw`"key\\name"`,
+    String.raw`"key\\\"name"`,
+    String.raw`"key\u0022name"`,
+    String.raw`"key\":true,\"other"`,
+    String.raw`"key\nname"`,
+  ])('escaped object key %s', key => {
+    test('should preserve the key when completing its value', () => {
+      const input = `{${key}:"value"}`;
+
+      assert.strictEqual(fixJson(input), input);
+      assert.strictEqual(fixJson(input.slice(0, -2)), input);
+    });
+
+    test('should omit the key until its value starts', () => {
+      for (const prefix of ['{', '{"previous":1,']) {
+        const expected = prefix === '{' ? '{}' : '{"previous":1}';
+
+        for (let length = 1; length <= key.length; length++) {
+          const input = prefix + key.slice(0, length);
+
+          assert.strictEqual(fixJson(input), expected, input);
+        }
+
+        assert.strictEqual(fixJson(`${prefix}${key}:`), expected);
+      }
+    });
+
+    test('should produce valid JSON for every streamed prefix', () => {
+      for (const input of [
+        `{${key}:"value"}`,
+        `{"previous":1,${key}:"value"}`,
+        `[{"previous":1},{${key}:"value"}]`,
+      ]) {
+        for (let length = 1; length <= input.length; length++) {
+          const partial = input.slice(0, length);
+
+          assert.doesNotThrow(() => JSON.parse(fixJson(partial)), partial);
+        }
+      }
+    });
+  });
 });
 
 describe('nesting', () => {

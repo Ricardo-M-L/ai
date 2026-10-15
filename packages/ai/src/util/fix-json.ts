@@ -7,6 +7,7 @@ type State =
   | 'INSIDE_NUMBER'
   | 'INSIDE_OBJECT_START'
   | 'INSIDE_OBJECT_KEY'
+  | 'INSIDE_OBJECT_KEY_ESCAPE'
   | 'INSIDE_OBJECT_AFTER_KEY'
   | 'INSIDE_OBJECT_BEFORE_VALUE'
   | 'INSIDE_OBJECT_AFTER_VALUE'
@@ -166,7 +167,18 @@ export function fixJson(input: string): string {
             stack.push('INSIDE_OBJECT_AFTER_KEY');
             break;
           }
+
+          case '\\': {
+            stack.push('INSIDE_OBJECT_KEY_ESCAPE');
+            break;
+          }
         }
+        break;
+      }
+
+      case 'INSIDE_OBJECT_KEY_ESCAPE': {
+        // An escaped key is still incomplete until its value starts.
+        stack.pop();
         break;
       }
 
